@@ -8,7 +8,7 @@ Library    RPA.Browser.Selenium
 Library    RPA.HTTP
 Library    RPA.Tables
 Library    RPA.PDF
-
+Library    RPA.Archive
 
 *** Tasks ***
 Order robots from RobotSpareBin Industries Inc
@@ -21,7 +21,9 @@ Order robots from RobotSpareBin Industries Inc
         Preview the robot
         Submit the order
         Verify order was submitted succesfully
-        ${pdf}=    Store the receipt as a PDF file    ${order}[Order number]
+        ${screenshot}=    Take a screenshot of the robot    ${order}[Order number]
+        # ${pdf}=    Store the receipt as a PDF file    ${order}[Order number]
+        ${pdf}=    Store the receipt as a PDF file with preview    ${order}[Order number]
         # Note there is a logic error here in that on the last one it will go to ordering another robot.
         # Not resolving this now :) 
         Order another robot
@@ -70,6 +72,11 @@ Verify order was submitted succesfully
     ${failed}=   Does Page Contain Element    css:div.alert-danger
     IF  ${failed}
         Sleep  0.5 seconds
+        # Noted: There is a possible coding logic error here in that if the alert takes time to
+        # appear then we may try sumitting without checking. There reverse would be try if
+        # checking for receip and we expect the receipt to just be there. We might try a second
+        # time to submit the order (which I suspect would cause an error because that button
+        # will no longer be there). ... just some thoughts on timing issues ..
         Submit the order
         Verify order was submitted succesfully
     END
@@ -83,13 +90,26 @@ Store the receipt as a PDF file
     [Arguments]  ${order_number}
     Wait Until Element Is Visible    id:receipt
     ${sales_results_html}=    Get Element Attribute    id:receipt    outerHTML
-    Html To Pdf    ${sales_results_html}    ${OUTPUT_DIR}${/}order\#${order_number}_receipt.pdf
+    # If I wanted to go fancy I would add back the css here :)
+    Html To Pdf    ${sales_results_html}    ${OUTPUT_DIR}${/}receipts${/}order\#${order_number}_receipt.pdf
 
-    # Log To Console    ToDo: Store the receipt as a PDF file
+Store the receipt as a PDF file with preview
+    [Arguments]  ${order_number}
+    Store the receipt as a PDF file    ${order_number}
+    ${images}=  Create List    ${OUTPUT_DIR}${/}images${/}robot\#${order_number}.png
+    Add Files To Pdf    ${images}
+    ...  ${OUTPUT_DIR}${/}receipts${/}order\#${order_number}_receipt.pdf
+    ...  append=${True}
+
+
+Take a screenshot of the robot
+    [Arguments]  ${order_number}
+    # ToDo: Check and make sure the preview is shown. If not show it via `Preview the robot`
+    # keyword.
+    Capture Element Screenshot    id:robot-preview-image    ${OUTPUT_DIR}${/}images${/}robot\#${order_number}.png
 
 Archive Output PDFs
-    Fail    ToDo: Archive Output PDFs
+    Archive Folder With Zip    ${OUTPUT_DIR}${/}receipts    ${OUTPUT_DIR}${/}receipts.zip
 
 Close RobotSpareBin Browser
     Close Browser
-    #Fail    ToDo: Close RobotSpareBin Browser
